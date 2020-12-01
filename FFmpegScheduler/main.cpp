@@ -70,7 +70,9 @@ std::unordered_map<std::string, std::string> Preset
 
 	{"loudnorm", Combine(InputCopy, LoudNorm, Output)},
 
-	{"i", Combine(Input)}
+	{"i", Combine(Input)},
+
+	{"easydecode", Combine(HwCuvid, X264Cuvid, Resize720p, Input, X264Nvenc, Yuv420p, Ac2, Output)}
 };
 
 [[nodiscard]] std::string PresetDesc()

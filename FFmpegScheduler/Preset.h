@@ -32,6 +32,10 @@ const SuffixString Image2 = "-f image2";
 const SuffixString Size100X100 = "-s 100x100";
 const SuffixString Size720p = "-s 1280x720";
 
+const SuffixString Resize720p = "-resize 1280x720";
+
+const SuffixString Ac2 = "-ac 2";
+
 const SuffixString PresetLossLessHp = "-preset losslesshp";
 const SuffixString PresetUltraFast = "-preset ultrafast";
 const SuffixString PresetSlower = "-preset slower";
