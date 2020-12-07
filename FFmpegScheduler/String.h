@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <sstream>
 
 template <char Suffix = ' '>
 class SuffixString : public std::string
