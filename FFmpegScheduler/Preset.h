@@ -4,6 +4,8 @@
 #include "Combine.h"
 #include "Unified.h"
 
+const SuffixString Vsync0 = "-vsync 0";
+
 const SuffixString HwCuvid = "-hwaccel cuvid";
 
 const SuffixString X264Cuvid = "-c:v h264_cuvid";

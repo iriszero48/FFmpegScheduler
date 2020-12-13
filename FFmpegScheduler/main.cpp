@@ -72,7 +72,7 @@ std::unordered_map<std::string, std::string> Preset
 
 	{"i", Combine(Input)},
 
-	{"easydecode", Combine(HwCuvid, X264Cuvid, Resize720p, Input, X264Nvenc, Yuv420p, Ac2, Output)}
+	{"easydecode", Combine(Vsync0, HwCuvid, X264Cuvid, Resize720p, Input, X264Nvenc, Ac2, OutputMp4)}
 };
 
 [[nodiscard]] std::string PresetDesc()
