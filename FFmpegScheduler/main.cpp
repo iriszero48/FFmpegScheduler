@@ -11,254 +11,225 @@
 #include <exception>
 #include <execution>
 #include <mutex>
+#include <barrier>
+#include <iostream>
+#include <format>
+#include <execution>
+#include <sstream>
 
-#include "Arguments.h"
-#include "Convert.h"
-#include "File.h"
-#include "Semaphore.h"
-#include "Preset.h"
+#include "Convert/Convert.hpp"
+#include "Arguments/Arguments.hpp"
+#include "File/File.hpp"
+#include "Enum/Enum.hpp"
+#include "String/String.hpp"
+#include "File/Directory.hpp"
+#include "Thread/Thread.hpp"
+#include "Assert/Assert.hpp"
+#include "StdIO/StdIO.hpp"
 
-std::unordered_map<std::string, std::string> Preset
-{
-	{"anima,avc,720p,comp,colorspace=bt709", Combine(InputCopy, Size720p, AvcAudioComp, AnimaAvc720pComp, ColorSpaceBt709, Output)},
+#include "Preset.hpp"
 
-	{"anima,avc,comp", Combine(InputCopy, AnimaAvcComp, Output)},
-	{"anima,avc,comp,colorspace=bt709", Combine(InputCopy, AnimaAvcComp, ColorSpaceBt709, Output)},
-	{"anima,avc,comp,bt709", Combine(InputCopy, AnimaAvcComp, Bt709, Output)},
-
-	{"anima,hevc,comp", Combine(InputCopy, AnimaHevcComp, Output)},
-	{"anima,hevc,comp,colorspace=bt709", Combine(InputCopy, AnimaHevcComp, ColorSpaceBt709, Output)},
-	{"anima,hevc,comp,bt709", Combine(InputCopy, AnimaHevcComp, Bt709, Output)},
-
-	{"anima,upto60fps,avc,ll", Combine(InputCopy, ScaleUp60Fps, AvcLossLessP10, Output)},
-	{"anima,upto60fps,avc,ll,colorspace=bt709", Combine(InputCopy, ScaleUp60Fps, AvcLossLessP10, ColorSpaceBt709, Output)},
-	{"anima,upto60fps,avc,ll,bt709", Combine(InputCopy, ScaleUp60Fps, AvcLossLessP10, Bt709, Output)},
-
-	{"anima,upto60fps,avc,comp", Combine(InputCopy, ScaleUp60Fps, AnimaAvcComp, Output)},
-	{"anima,upto60fps,avc,comp,colorspace=bt709", Combine(InputCopy, ScaleUp60Fps, AnimaAvcComp, ColorSpaceBt709, Output)},
-	{"anima,upto60fps,avc,comp,bt709", Combine(InputCopy, ScaleUp60Fps, AnimaAvcComp, Bt709, Output)},
-
-	{"anima,upto60fps,avc,comp,444p10,colorspace=bt709", Combine(InputCopy, ScaleUp60Fps, AnimaAvcCompYuv444, ColorSpaceBt709, Output)},
-
-	{"avc,ll", Combine(InputCopy, AvcLossLess, Output)},
-	{"avc,vll", Combine(InputCopy, AvcVisuallyLossLess, Output)},
-	{"avc,vll,p10", Combine(InputCopy, AvcVisuallyLossLessP10, Output)},
-	{"avc,vll,p10,bt709", Combine(InputCopy, AvcVisuallyLossLessP10, Bt709, Output)},
-	{"avc,vll,p10,smpte170m", Combine(InputCopy, AvcVisuallyLossLessP10, Smpte170m, Output)},
-
-	{"avc", Combine(Input, X264, Output)},
-	{"avc,bt709", Combine(Input, X264, Bt709, Output)},
-	{"avc,placebo", Combine(Input, X264, PresetPlacebo, Output)},
-
-	{"avc,720p,nvenc,colorspace=bt709", Combine(InputCopy, Size720p, AvcAudioComp, X264Nvenc, Yuv420p, ColorSpaceBt709, Output)},
-
-	{"nv,avc", Combine(NvInput, X264Nvenc, Output)},
-	{"nv,avc,ll", Combine(NvInput, NvencAvcLossLess, Output)},
-
-	{"rp,avc", Combine(X264Mmal, Input, X264Omx, Output)},
-
-	{"pic,jpg", Combine(Input, OutputJpg)},
-	{"pic,png", Combine(Input, OutputPng)},
-
-	{"pic,png,resize100x100", Combine(Input, Size100X100, OutputPng)},
-
-	{"vid,mp4", Combine(Input, OutputMp4)},
-
-	{"vid2png%d", Combine(Input, Image2, OutputPng_d)},
-
-	{"png%d2mp4,29.97fps,p10le", Combine(FrameRate29_97, InputPng_d, Yuv420p10le, Output)},
-
-	{"loudnorm", Combine(InputCopy, LoudNorm, Output)},
-
-	{"i", Combine(Input)},
-
-	{"easydecode", Combine(Vsync0, HwCuvid, X264Cuvid, Resize720p, Input, X264Nvenc, Ac2, OutputMp4)}
-};
+#include <Windows.h>
+#include <WinUser.h>
 
 [[nodiscard]] std::string PresetDesc()
 {
 	std::ostringstream ss;
-	for (auto& preset : Preset)
+	for (const auto& [fst, snd] : Preset::Presets)
 	{
-		ss << SuffixString<'\n'>(Combine(std::string(8, ' '), preset.first, " => ", preset.second));
+		ss << CuStr::Combine(std::string(4, ' '), fst, " => ", snd) << "\n";
 	}
 	return ss.str();
 }
 
-int main(int argc, char* argv[])
-{
-#define InvalidArgument(v) Argument<>::ConstraintFuncMsg{ Combine(v, ": Invalid argument") }
-#define InvalidArgumentFunc(func) [](const auto& v) { return (func) ? std::nullopt : InvalidArgument(v); }
+CuEnum_MakeEnum(InputMode, File, Dir);
+CuEnum_MakeEnum(CreateNewWindow, Off = 0, On = 1);
 
+using CmdStringType = std::filesystem::path::string_type;
+
+CmdStringType operator""_cmd(const char* str, std::size_t)
+{
+	return std::filesystem::path(str).string<CmdStringType::value_type>();
+}
+
+template <typename T>
+T ApplyReplace(T str, const std::unordered_map<T, T>& replaceList)
+{
+	for (const auto& rep : replaceList)
+	{
+		str = std::regex_replace(str, std::basic_regex(rep.first), rep.second);
+	}
+	return str;
+}
+
+CmdStringType ReplaceCommandLine(const std::string& cmd,
+                                 const std::filesystem::path& input, const std::filesystem::path& output,
+                                 const std::thread::id& id)
+{
+	return ApplyReplace(CuStr::ToStringAs<CmdStringType>(cmd), {
+		                    {R"(\${3}input\${3})"_cmd, input.native()},
+		                    {R"(\${3}output\${3})"_cmd, output.native()},
+		                    {R"(\${3}thread_id\${3})"_cmd, CuStr::CombineAs<CmdStringType>(id)}
+	                    });
+}
+
+
+void FFmpeg(std::string cmd, const std::filesystem::path& ffmpeg, const std::filesystem::path& input,
+            const std::filesystem::path& output,
+            const std::thread::id& id, const bool printOnly, const bool createNewWindow, CuThread::Semaphore* semaphore)
+{
+	const auto idStr = CuStr::Combine(id);
+
+	if (semaphore) semaphore->WaitOne();
+
+	if (*cmd.rbegin() != Preset::AndCh) cmd.push_back(Preset::AndCh);
+	std::string cmdLine;
+	std::stringstream ss(cmd);
+	while (std::getline(ss, cmdLine))
+	{
+		const auto execCmd = ReplaceCommandLine(cmdLine, input, output, id);
+
+		CuConsole::WriteLine(CuStr::ToDirtyUtf8StringView(
+			CuStr::FormatU8("[{}] [{}] -> {} {}", CuStr::Combine(std::chrono::system_clock::now()), idStr, ffmpeg, execCmd)));
+
+		if (!printOnly)
+		{
+#ifdef CuUtil_Platform_Windows
+			STARTUPINFOW si;
+			PROCESS_INFORMATION pi;
+
+			ZeroMemory(&si, sizeof(si));
+			si.cb = sizeof(si);
+			ZeroMemory(&pi, sizeof(pi));
+
+			// Start the child process. 
+			auto args = CuStr::CombineW(ffmpeg, " ", execCmd);
+			if (!CreateProcess(ffmpeg.native().c_str(),   // No module name (use command line)
+				args.data(),        // Command line
+				nullptr,           // Process handle not inheritable
+				nullptr,           // Thread handle not inheritable
+				FALSE,          // Set handle inheritance to FALSE
+				createNewWindow ? CREATE_NEW_CONSOLE : 0,              // No creation flags
+				nullptr,           // Use parent's environment block
+				nullptr,           // Use parent's starting directory 
+				&si,            // Pointer to STARTUPINFO structure
+				&pi)           // Pointer to PROCESS_INFORMATION structure
+				)
+			{
+				throw CuExcept::U8Exception(CuStr::FormatU8("CreateProcess failed ({})", static_cast<uint64_t>(GetLastError())));
+			}
+
+			// Wait until child process exits.
+			WaitForSingleObject(pi.hProcess, INFINITE);
+
+			// Close process and thread handles. 
+			CloseHandle(pi.hProcess);
+			CloseHandle(pi.hThread);
+#else
+			std::string args{};
+			if (createNewWindow) args.append("gnome-terminal -e '");
+			CuStr::AppendsTo(args, ffmpeg, " ", execCmd);
+			if (createNewWindow) args.append("'");
+			system(args.c_str());
+#endif
+		}
+	}
+
+	if (semaphore) semaphore->Release();
+}
+
+int main(int argc, const char* argv[])
+{
 	try
 	{
-		Arguments args{};
+		CuArgs::Arguments args{};
 
-		Argument input("i", "input");
-		Argument output("o", "output");
-		Argument log("l", "log path");
-		Argument<int> thread(
-			"t",
-			"thread",
-			1,
-			{ InvalidArgumentFunc(v > 0) },
-			Convert<std::string, int>);
-		Argument custom("custom", "custom");
-		Argument mode(
-			"mode",
-			"[(f)|d] file/directory",
-			{ "f" },
-			{ InvalidArgumentFunc(v == "f" || v == "d") });
-		Argument<bool> move(
-			"move",
-			"[(y)|n] move when done",
-			{ true },
-			{ InvalidArgumentFunc(true) },
-			{ [](const auto& v) { return !(v == "n"); } });
-		Argument call(
-			"call",
-			"(ffmpeg) call ffmpeg",
-			{ "ffmpeg" });
-		Argument inputExtension(
-			"ie",
-			"input extension",
-			{ "" });
-		Argument outputExtension(
-			"oe",
-			"output extension",
-			{ "" });
-		Argument preset(
-			"p",
-			Combine("preset\n", PresetDesc()),
-			{},
-			{ InvalidArgumentFunc(Preset.find(v) != Preset.end()) });
+		CuArgs::BoolArgument helpArg("-h", "help");
+		CuArgs::Argument inputArg("-i", "input");
+		CuArgs::Argument outputArg("-o", "output");
+		CuArgs::Argument logArg("-l", "log path");
+		CuArgs::Argument threadArg("-t", "thread", 1u);
+		CuArgs::Argument customArg("-c", "custom command");
+		CuArgs::EnumArgument modeArg("-m", "[(File)|Dir] input file/directory mode", InputMode::File);
+		CuArgs::Argument<std::string> execArg("-e", "ffmpeg exec path", "ffmpeg");
+		CuArgs::Argument<std::string> inputExtensionArg("-ie", "input extension", "$&");
+		CuArgs::Argument<std::string> outputExtensionArg("-oe", "output extension", "$&");
+		CuArgs::Argument presetArg("-p", CuStr::Combine("preset\n", PresetDesc()));
+		CuArgs::BoolArgument printOnlyArg("--print-only", "print only");
+		CuArgs::EnumArgument<CreateNewWindow> createNewWindowArg("--create-new-window", "create new window [(Auto)|On|Off]");
 
-		args.Add(input);
-		args.Add(output);
-		args.Add(log);
-		args.Add(thread);
-		args.Add(custom);
-		args.Add(mode);
-		args.Add(move);
-		args.Add(inputExtension);
-		args.Add(outputExtension);
-		args.Add(call);
-		args.Add(preset);
+		args.Add(helpArg, inputArg, outputArg, logArg, threadArg, customArg, modeArg, execArg, inputExtensionArg,
+		         outputExtensionArg, presetArg, printOnlyArg);
 
 		args.Parse(argc, argv);
 
-		const std::regex inputRe(R"(\${3}input.?\${3})");
-		const std::regex outputRe(R"(\${3}output\${3})");
-		const std::regex inputExtensionRe(R"("\${3}output\${3}")");
-		const std::regex outputExtensionRe(R"("\${3}output\${3}.*?")");
-
-		const auto extendPresetCmd = std::regex_replace(
-			std::regex_replace(
-				Combine(SuffixString(args.Value(call)), args.Get(custom) ? args.Value(custom) : Preset[args.Value(preset)]),
-				outputExtensionRe,
-				Combine(SuffixString(args.Value(outputExtension)), "$&")),
-			inputExtensionRe,
-			Combine(SuffixString(args.Value(inputExtension)), "$&"));
-
-		const auto inputPath = std::filesystem::path(args.Value(input));
-		const auto outputPath = args.Get(output) ? std::filesystem::path(args.Value(output)) : inputPath / "done";
-
-		create_directory(outputPath);
-
-		if (args.Value(mode) == "f")
+		if (args.Value(helpArg))
 		{
-			const auto moveWhenDone = args.Value<decltype(move)::ValueType>(move);
-			const auto threadNum = args.Value<decltype(thread)::ValueType>(thread);
+			CuConsole::WriteLine(args.GetDesc());
+			return EXIT_SUCCESS;
+		}
 
-			const auto rawPath = inputPath / "raw";
-			const auto logPath = args.Get(log) ? std::filesystem::path(args.Value(log)) : inputPath / "log";
+		CuConsole::WriteLine(args.GetValuesDesc());
 
-			if (moveWhenDone) create_directory(rawPath);
-			if (threadNum != 1) create_directory(logPath);
+		const auto printOnly = args.Value(printOnlyArg);
+		const auto ffmpegExec = args.Value(execArg);
+		const auto rawSubCmd = args.Get(customArg) ? args.Value(customArg) : Preset::Presets.at(args.Value(presetArg));
+		const auto threadNum = args.Value(threadArg);
+		const bool createNewWindow = CuUtil::ToUnderlying(args.Get(createNewWindowArg).value_or(threadNum != 1 ? CreateNewWindow::On : CreateNewWindow::Off));
 
-			auto files = GetFiles(inputPath);
+		const auto rawCmd = ApplyReplace(rawSubCmd, {
+			                                 {R"("\${3}input\${3}")", args.Value(inputExtensionArg)},
+			                                 {R"("\${3}output\${3}.*?")", args.Value(outputExtensionArg)}
+		                                 });
 
-			std::stable_sort(std::execution::par_unseq, files.begin(), files.end());
+		const std::filesystem::path inputPath = args.Value(inputArg);
+		const auto outputPath = args.Get(outputArg);
 
-			std::mutex idMtx{};
-			Semaphore cs(threadNum);
+		if (outputPath) std::filesystem::create_directories(*outputPath);
 
-			auto ffmpeg = [&, count = 0](const auto& file) mutable
+		const std::filesystem::path logPath = args.Get(logArg).value_or("log");
+
+		if (threadNum != 1) create_directories(logPath);
+
+		std::vector<std::filesystem::path> files;
+		if (args.Value(modeArg) == InputMode::File)
+			files = GetFiles(
+				inputPath, CuDirectory::IteratorOptions_RecurseSubdirectories);
+		else files.push_back(inputPath);
+		std::ranges::stable_sort(files);
+
+		const auto process = [&](const std::filesystem::path& file, CuThread::Semaphore* semaphore)
+		{
+			CuConsole::WriteLine(CuStr::ToDirtyUtf8StringView(CuStr::FormatU8("-> {}", file)));
+
+			const auto output = outputPath ? *outputPath / file.filename() : file.parent_path() / file.filename();
+			FFmpeg(rawCmd, ffmpegExec, file, output, std::this_thread::get_id(), printOnly, createNewWindow, semaphore);
+		};
+
+		if (threadNum == 1)
+		{
+			for (const auto& file : files)
 			{
-				cs.WaitOne();
-				idMtx.lock();
-				auto id = count++;
-				idMtx.unlock();
-
-				const auto currFile = inputPath / file.path().filename();
-				const auto cmd =
-					Combine(
-						std::regex_replace(
-							std::regex_replace(
-								extendPresetCmd,
-								inputRe,
-								currFile.string()),
-							outputRe,
-							(outputPath / file.path().filename()).string()),
-						threadNum == 1 ? "" : Combine(" >", DoubleQuotes((logPath / Combine("log.", id)).string()), " 2>&1"));
-				printf("\n>>> %s\n\n", cmd.c_str());
-				system(cmd.c_str());
-
-				if (moveWhenDone)
-				{
-					try
-					{
-						rename(currFile, rawPath / file.path().filename());
-					}
-					catch (...)
-					{
-						using namespace std::chrono_literals;
-						std::this_thread::sleep_for(+1s);
-						rename(currFile, rawPath / file.path().filename());
-					}
-				}
-				cs.Release();
-			};
-
-			if (threadNum == 1)
-			{
-				if (args.Value<decltype(move)::ValueType>(move))
-				{
-					for (; !files.empty();
-						files = GetFiles(inputPath),
-						std::stable_sort(std::execution::par_unseq, files.begin(), files.end()))
-					{
-						ffmpeg(files[0]);
-					}
-				}
-				else
-				{
-					std::for_each(files.begin(), files.end(), ffmpeg);
-				}
-			}
-			else
-			{
-				std::for_each(std::execution::par, files.begin(), files.end(), ffmpeg);
+				process(file, nullptr);
 			}
 		}
 		else
 		{
-			const auto cmd =
-				std::regex_replace(
-					std::regex_replace(
-						extendPresetCmd,
-						inputRe,
-						inputPath.string()),
-					outputRe,
-					outputPath.string());
-			printf("\n>>> %s\n\n", cmd.c_str());
-			system(cmd.c_str());
+			CuThread::Semaphore semaphore(threadNum);
+			std::vector<std::thread> workers;
+			for (const auto& file : files)
+			{
+				workers.emplace_back([&]
+				{
+					const auto logFile = logPath / CuStr::Combine(std::this_thread::get_id(), ".log");
+					process(file, &semaphore);
+				});
+			}
 		}
 	}
 	catch (const std::exception& e)
 	{
-		fputs(e.what(), stderr), exit(EXIT_FAILURE);
+		CuConsole::Error::Write(e.what());
+		return EXIT_FAILURE;
 	}
 }
-// g++<10 may need tbb
-// g++ fs.cpp -o fs -std=c++17 -ltbb -O2
