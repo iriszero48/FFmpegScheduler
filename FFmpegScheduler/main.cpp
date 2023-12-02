@@ -13,7 +13,6 @@
 #include <mutex>
 #include <barrier>
 #include <iostream>
-#include <format>
 #include <execution>
 #include <sstream>
 
@@ -29,8 +28,10 @@
 
 #include "Preset.hpp"
 
+#ifdef CuUtil_Platform_Windows
 #include <Windows.h>
 #include <WinUser.h>
+#endif
 
 [[nodiscard]] std::string PresetDesc()
 {
