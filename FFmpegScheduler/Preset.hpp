@@ -125,7 +125,7 @@ namespace Preset
 
 	MakeConstVar(Vvc2Pass1, CuUtil::String::Combine(R"(-an -c:v libvvenc -vvenc-params passes=2:pass=1:rcstatsfile=)", ThreadId, ".json"));
 	MakeConstVar(Vvc2Pass2, CuUtil::String::Combine(R"(-c:v libvvenc -vvenc-params passes=2:pass=2:rcstatsfile=)", ThreadId, ".json"));
-	MakeConstVar(VidArchVvc10_2pass, CuUtil::String::Join(" ", Input, Vvc2Pass1, OutputNull, And, Input, Opus, Vvc2Pass2, OutputMp4));
+	MakeConstVar(VidArchVvc_2pass, CuUtil::String::Join(" ", Input, Vvc2Pass1, OutputNull, And, Input, Opus, Vvc2Pass2, OutputMp4));
 #undef MakeConstVar
 
 	inline std::unordered_map<std::string, std::string> Presets{
@@ -204,8 +204,8 @@ namespace Preset
 						 .data())},
 
 		{"vid,arch,svt10", std::string(CuUtil::String::Join(" ", Input, Opus, SvtAv1, Yuv420p10le, OutputMkv).data())},
-		{"vid,arch,vvc10", std::string(CuUtil::String::Join(" ", Input, Opus, VvEnc, OutputMp4).data())},
-		{"vid,arch,vvc10,2pass", std::string(VidArchVvc10_2pass.data())},
+		{"vid,arch,vvc", std::string(CuUtil::String::Join(" ", Input, Opus, VvEnc, OutputMp4).data())},
+		{"vid,arch,vvc,2pass", std::string(VidArchVvc_2pass.data())},
 		{"pic,arch,avif", std::string(CuUtil::String::Join(" ", Input, OutputAvif).data())},
 	};
 }

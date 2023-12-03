@@ -91,7 +91,7 @@ void FFmpeg(std::string cmd, const std::filesystem::path& ffmpeg, const std::fil
 		const auto execCmd = ReplaceCommandLine(cmdLine, input, output, id);
 
 		CuConsole::WriteLine(CuStr::ToDirtyUtf8StringView(
-			CuStr::FormatU8("[{}] [{}] -> {} {}", CuStr::Combine(std::chrono::system_clock::now()), idStr, ffmpeg, execCmd)));
+			CuStr::FormatU8("[{}] -> {} {}", idStr, ffmpeg, execCmd)));
 
 		if (!printOnly)
 		{
@@ -160,7 +160,7 @@ int main(int argc, const char* argv[])
 		CuArgs::EnumArgument<CreateNewWindow> createNewWindowArg("--create-new-window", "create new window [(Auto)|On|Off]");
 
 		args.Add(helpArg, inputArg, outputArg, logArg, threadArg, customArg, modeArg, execArg, inputExtensionArg,
-		         outputExtensionArg, presetArg, printOnlyArg);
+		         outputExtensionArg, presetArg, printOnlyArg, createNewWindowArg);
 
 		args.Parse(argc, argv);
 
@@ -174,7 +174,7 @@ int main(int argc, const char* argv[])
 
 		const auto printOnly = args.Value(printOnlyArg);
 		const auto ffmpegExec = args.Value(execArg);
-		const auto rawSubCmd = args.Get(customArg) ? args.Value(customArg) : Preset::Presets.at(args.Value(presetArg));
+		const auto rawSubCmd = args.Get(customArg).has_value() ? args.Value(customArg) : Preset::Presets.at(args.Value(presetArg));
 		const auto threadNum = args.Value(threadArg);
 		const bool createNewWindow = CuUtil::ToUnderlying(args.Get(createNewWindowArg).value_or(threadNum != 1 ? CreateNewWindow::On : CreateNewWindow::Off));
 
@@ -230,7 +230,7 @@ int main(int argc, const char* argv[])
 	}
 	catch (const std::exception& e)
 	{
-		CuConsole::Error::Write(e.what());
+		CuConsole::Error::WriteLine(e.what());
 		return EXIT_FAILURE;
 	}
 }
