@@ -10,20 +10,14 @@
 #include <chrono>
 #include <exception>
 #include <execution>
-#include <mutex>
-#include <barrier>
 #include <iostream>
-#include <execution>
 #include <sstream>
 
-#include "Convert/Convert.hpp"
 #include "Arguments/Arguments.hpp"
-#include "File/File.hpp"
 #include "Enum/Enum.hpp"
 #include "String/String.hpp"
 #include "File/Directory.hpp"
 #include "Thread/Thread.hpp"
-#include "Assert/Assert.hpp"
 #include "StdIO/StdIO.hpp"
 
 #include "Preset.hpp"
@@ -77,11 +71,9 @@ CmdStringType ReplaceCommandLine(const std::string& cmd,
 
 void FFmpeg(std::string cmd, const std::filesystem::path& ffmpeg, const std::filesystem::path& input,
             const std::filesystem::path& output,
-            const std::thread::id& id, const bool printOnly, const bool createNewWindow, CuThread::Semaphore* semaphore)
+            const std::thread::id& id, const bool printOnly, const bool createNewWindow)
 {
 	const auto idStr = CuStr::Combine(id);
-
-	if (semaphore) semaphore->WaitOne();
 
 	if (*cmd.rbegin() != Preset::AndCh) cmd.push_back(Preset::AndCh);
 	std::string cmdLine;
@@ -135,8 +127,6 @@ void FFmpeg(std::string cmd, const std::filesystem::path& ffmpeg, const std::fil
 #endif
 		}
 	}
-
-	if (semaphore) semaphore->Release();
 }
 
 int main(int argc, const char* argv[])
@@ -199,32 +189,54 @@ int main(int argc, const char* argv[])
 		else files.push_back(inputPath);
 		std::ranges::stable_sort(files);
 
-		const auto process = [&](const std::filesystem::path& file, CuThread::Semaphore* semaphore)
+		const auto process = [&](const std::filesystem::path& file)
 		{
 			CuConsole::WriteLine(CuStr::ToDirtyUtf8StringView(CuStr::FormatU8("-> {}", file)));
 
 			const auto output = outputPath ? *outputPath / file.filename() : file.parent_path() / file.filename();
-			FFmpeg(rawCmd, ffmpegExec, file, output, std::this_thread::get_id(), printOnly, createNewWindow, semaphore);
+			FFmpeg(rawCmd, ffmpegExec, file, output, std::this_thread::get_id(), printOnly, createNewWindow);
 		};
 
 		if (threadNum == 1)
 		{
 			for (const auto& file : files)
 			{
-				process(file, nullptr);
+				process(file);
 			}
 		}
 		else
 		{
 			CuThread::Semaphore semaphore(threadNum);
-			std::vector<std::thread> workers;
+			CuThread::Channel<std::filesystem::path> channel{};
+			std::vector<std::thread> workers(threadNum);
+			std::ranges::generate(workers, [&]()
+			{
+				return std::thread([&]()
+				{
+					while (true)
+					{
+						const auto file = channel.Read();
+						if (file.empty()) break;
+
+						const auto logFile = logPath / CuStr::Combine(std::this_thread::get_id(), ".log");
+						process(file);
+					}
+				});
+			});
+			
 			for (const auto& file : files)
 			{
-				workers.emplace_back([&]
-				{
-					const auto logFile = logPath / CuStr::Combine(std::this_thread::get_id(), ".log");
-					process(file, &semaphore);
-				});
+				channel.Write(std::filesystem::path(file));
+			}
+
+			for (int64_t i = 0; i < threadNum; ++i)
+			{
+				channel.Write(std::filesystem::path{});
+			}
+
+			for (auto& worker : workers)
+			{
+				worker.join();
 			}
 		}
 	}
