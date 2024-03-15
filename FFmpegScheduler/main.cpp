@@ -27,6 +27,40 @@
 #include <WinUser.h>
 #endif
 
+#ifdef __cpp_lib_ranges
+#define CU_RANGES_HAS_STD_RANGES
+#include <ranges>
+#elif defined(CU_RANGES_USE_RANGE_V3)
+#define CU_RANGES_HAS_RANGE_V3
+#endif
+
+namespace CuRanges
+{
+	template <typename T>
+	void StableSort(T& cont)
+	{
+#ifdef CU_RANGES_HAS_STD_RANGES
+		std::ranges::stable_sort(cont);
+#elif defined(CU_RANGES_HAS_RANGE_V3)
+
+#else
+		std::stable_sort(cont.begin(), cont.end());
+#endif
+	}
+
+	template <typename T, typename F>
+	void Generate(T& cont, F&& func)
+	{
+#ifdef CU_RANGES_HAS_STD_RANGES
+		std::ranges::generate(cont, std::forward<F>(func));
+#elif defined(CU_RANGES_HAS_RANGE_V3)
+
+#else
+		std::generate(cont.begin(), cont.end(), std::forward<F>(func));
+#endif
+	}
+}
+
 [[nodiscard]] std::string PresetDesc()
 {
 	std::ostringstream ss;
@@ -189,7 +223,7 @@ int main(int argc, const char* argv[])
 			files = GetFiles(
 				inputPath, CuDirectory::IteratorOptions_RecurseSubdirectories);
 		else files.push_back(inputPath);
-		std::ranges::stable_sort(files);
+		CuRanges::StableSort(files);
 		if (filterRe)
 		{
 			auto re = std::regex(CuStr::ToDirtyUtf8String(CuStr::ToU8String(*filterRe)));
@@ -220,7 +254,7 @@ int main(int argc, const char* argv[])
 			CuThread::Semaphore semaphore(threadNum);
 			CuThread::Channel<std::filesystem::path> channel{};
 			std::vector<std::thread> workers(threadNum);
-			std::ranges::generate(workers, [&]()
+			CuRanges::Generate(workers, [&]()
 			{
 				return std::thread([&]()
 				{
