@@ -148,9 +148,10 @@ int main(int argc, const char* argv[])
 		CuArgs::Argument presetArg("-p", CuStr::Combine("preset\n", PresetDesc()));
 		CuArgs::BoolArgument printOnlyArg("--print-only", "print only");
 		CuArgs::EnumArgument<CreateNewWindow> createNewWindowArg("--create-new-window", "create new window [(Auto)|On|Off]");
+		CuArgs::Argument filterReArg("-f", "filter");
 
 		args.Add(helpArg, inputArg, outputArg, logArg, threadArg, customArg, modeArg, execArg, inputExtensionArg,
-		         outputExtensionArg, presetArg, printOnlyArg, createNewWindowArg);
+		         outputExtensionArg, presetArg, printOnlyArg, createNewWindowArg, filterReArg);
 
 		args.Parse(argc, argv);
 
@@ -167,6 +168,7 @@ int main(int argc, const char* argv[])
 		const auto rawSubCmd = args.Get(customArg).has_value() ? args.Value(customArg) : Preset::Presets.at(args.Value(presetArg));
 		const auto threadNum = args.Value(threadArg);
 		const bool createNewWindow = CuUtil::ToUnderlying(args.Get(createNewWindowArg).value_or(threadNum != 1 ? CreateNewWindow::On : CreateNewWindow::Off));
+		const auto filterRe = args.Get(filterReArg);
 
 		const auto rawCmd = ApplyReplace(rawSubCmd, {
 			                                 {R"("\${3}input\${3}")", args.Value(inputExtensionArg)},
@@ -188,10 +190,19 @@ int main(int argc, const char* argv[])
 				inputPath, CuDirectory::IteratorOptions_RecurseSubdirectories);
 		else files.push_back(inputPath);
 		std::ranges::stable_sort(files);
-
-		const auto process = [&](const std::filesystem::path& file)
+		if (filterRe)
 		{
-			CuConsole::WriteLine(CuStr::ToDirtyUtf8StringView(CuStr::FormatU8("-> {}", file)));
+			auto re = std::regex(CuStr::ToDirtyUtf8String(CuStr::ToU8String(*filterRe)));
+			std::erase_if(files, [&re](const auto& file)
+			{
+				return !std::regex_match(CuStr::ToDirtyUtf8String(file.u8string()).c_str(), re);
+			});
+		}
+
+		const auto process = [&](const std::filesystem::path& file, const size_t count)
+		{
+			static std::atomic_size_t index = 0;
+			CuConsole::WriteLine(CuStr::ToDirtyUtf8StringView(CuStr::FormatU8("-> ({}/{}) {}", ++index, count, file)));
 
 			const auto output = outputPath ? *outputPath / file.filename() : file.parent_path() / file.filename();
 			FFmpeg(rawCmd, ffmpegExec, file, output, std::this_thread::get_id(), printOnly, createNewWindow);
@@ -201,7 +212,7 @@ int main(int argc, const char* argv[])
 		{
 			for (const auto& file : files)
 			{
-				process(file);
+				process(file, files.size());
 			}
 		}
 		else
@@ -219,7 +230,7 @@ int main(int argc, const char* argv[])
 						if (file.empty()) break;
 
 						const auto logFile = logPath / CuStr::Combine(std::this_thread::get_id(), ".log");
-						process(file);
+						process(file, files.size());
 					}
 				});
 			});

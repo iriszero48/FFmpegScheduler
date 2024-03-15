@@ -117,6 +117,7 @@ namespace Preset
 	MakeConstVar(OutputAvif, R"("$$$output$$$.avif")");
 	MakeConstVar(OutputMp4, R"("$$$output$$$.mp4")");
 	MakeConstVar(OutputMkv, R"("$$$output$$$.mkv")");
+	MakeConstVar(OutputOpus, R"("$$$output$$$.opus")");
 #ifdef CuUtil_Platform_Windows
 	MakeConstVar(OutputNull, CuUtil::String::Join(" ", FormatNull, "NUL"));
 #else
@@ -203,9 +204,10 @@ namespace Preset
 										  OutputMp4)
 						 .data())},
 
-		{"vid,arch,svt10", std::string(CuUtil::String::Join(" ", Input, Opus, SvtAv1, Yuv420p10le, OutputMkv).data())},
-		{"vid,arch,vvc", std::string(CuUtil::String::Join(" ", Input, Opus, VvEnc, OutputMp4).data())},
-		{"vid,arch,vvc,2pass", std::string(VidArchVvc_2pass.data())},
-		{"pic,arch,avif", std::string(CuUtil::String::Join(" ", Input, OutputAvif).data())},
+		{"arch,svtp10", std::string(CuUtil::String::Join(" ", Input, Opus, SvtAv1, Yuv420p10le, OutputMkv).data())},
+		{"arch,vvc", std::string(CuUtil::String::Join(" ", Input, Opus, VvEnc, OutputMp4).data())},
+		{"arch,vvc2", std::string(VidArchVvc_2pass.data())},
+		{"avif", std::string(CuUtil::String::Join(" ", Input, OutputAvif).data())},
+		{"opus", std::string(CuUtil::String::Join(" ", Input, Opus, OutputOpus).data())}
 	};
 }
