@@ -39,6 +39,7 @@
 
 CuEnum_MakeEnum(InputMode, File, Dir);
 CuEnum_MakeEnum(CreateNewWindow, Off = 0, On = 1);
+CuEnum_MakeEnum(FilterPreset, p, v, a);
 
 using CmdStringType = std::filesystem::path::string_type;
 
@@ -148,10 +149,19 @@ int main(int argc, const char* argv[])
 		CuArgs::Argument presetArg("-p", CuStr::Combine("preset\n", PresetDesc()));
 		CuArgs::BoolArgument printOnlyArg("--print-only", "print only");
 		CuArgs::EnumArgument<CreateNewWindow> createNewWindowArg("--create-new-window", "create new window [(Auto)|On|Off]");
-		CuArgs::Argument filterReArg("-f", "filter");
+		CuArgs::Argument filterReArg("-f", "filter (JavaScript regex)");
+		filterReArg.Validate = [](const std::string& val)
+		{
+			if (val.length() < 3) return false;
+			if (val[0] != '/') return false;
+			if (const auto endPos = val.find_last_of('/'); endPos == std::string::npos || endPos == 0) return false;
+
+			return true;
+		};
+		CuArgs::EnumArgument<FilterPreset> filterPresetArg("--filter-preset", "filter preset [p|v|a]");
 
 		args.Add(helpArg, inputArg, outputArg, logArg, threadArg, customArg, modeArg, execArg, inputExtensionArg,
-		         outputExtensionArg, presetArg, printOnlyArg, createNewWindowArg, filterReArg);
+		         outputExtensionArg, presetArg, printOnlyArg, createNewWindowArg, filterReArg, filterPresetArg);
 
 		args.Parse(argc, argv);
 
@@ -168,7 +178,8 @@ int main(int argc, const char* argv[])
 		const auto rawSubCmd = args.Get(customArg).has_value() ? args.Value(customArg) : Preset::Presets.at(args.Value(presetArg));
 		const auto threadNum = args.Value(threadArg);
 		const bool createNewWindow = CuUtil::ToUnderlying(args.Get(createNewWindowArg).value_or(threadNum != 1 ? CreateNewWindow::On : CreateNewWindow::Off));
-		const auto filterRe = args.Get(filterReArg);
+		auto filterRe = args.Get(filterReArg);
+		const auto filterPreset = args.Get(filterPresetArg);
 
 		const auto rawCmd = ApplyReplace(rawSubCmd, {
 			                                 {R"("\${3}input\${3}")", args.Value(inputExtensionArg)},
@@ -190,9 +201,37 @@ int main(int argc, const char* argv[])
 				inputPath, CuDirectory::IteratorOptions_RecurseSubdirectories);
 		else files.push_back(inputPath);
 		CuRanges::StableSort(files);
+
+		if (!filterRe && filterPreset)
+		{
+			static std::unordered_map<FilterPreset, std::string> presets
+			{
+				{FilterPreset::p, R"(/.+\.(jpg|jpeg|png|psd|bmp|gif)/i)"},
+				{FilterPreset::v, R"(/.+\.(mp4|mkv|avi|rm|rmvb|wmv|flv|mpg)/i)"},
+				{FilterPreset::a, R"(/.+\.(mp3|wav|mka)/i)"}
+			};
+
+			filterRe = presets.at(*filterPreset);
+		}
+
 		if (filterRe)
 		{
-			auto re = std::regex(CuStr::ToDirtyUtf8String(CuStr::ToU8String(*filterRe)));
+			constexpr auto being = 1;
+			const auto end = filterRe->find_last_of('/');
+			const auto mode = filterRe->substr(end + 1);
+			filterRe = filterRe->substr(being, end - being);
+			auto flags = std::regex_constants::ECMAScript | std::regex_constants::optimize;
+			if (mode == "i")
+			{
+				flags |= std::regex_constants::icase;
+			}
+			else if (!mode.empty())
+			{
+				throw CuExcept::Exception("invalid regex flags");
+			}
+
+			CuConsole::WriteLine(CuStr::Combine("using filter: ", std::quoted(*filterRe), " 0x", std::hex, flags));
+			auto re = std::regex(CuStr::ToDirtyUtf8String(CuStr::ToU8String(*filterRe)), flags);
 			std::erase_if(files, [&re](const auto& file)
 			{
 				return !std::regex_match(CuStr::ToDirtyUtf8String(file.u8string()).c_str(), re);
