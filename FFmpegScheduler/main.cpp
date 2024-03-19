@@ -207,8 +207,8 @@ int main(int argc, const char* argv[])
 			static std::unordered_map<FilterPreset, std::string> presets
 			{
 				{FilterPreset::p, R"(/.+\.(jpg|jpeg|png|psd|bmp|gif)/i)"},
-				{FilterPreset::v, R"(/.+\.(mp4|mkv|avi|rm|rmvb|wmv|flv|mpg)/i)"},
-				{FilterPreset::a, R"(/.+\.(mp3|wav|mka)/i)"}
+				{FilterPreset::v, R"(/.+\.(mp4|mkv|avi|rm|rmvb|wmv|flv|mpg|ts|webm|m2ts|m4v)/i)"},
+				{FilterPreset::a, R"(/.+\.(mp3|wav|mka|aac|flac)/i)"}
 			};
 
 			filterRe = presets.at(*filterPreset);
@@ -230,7 +230,7 @@ int main(int argc, const char* argv[])
 				throw CuExcept::Exception("invalid regex flags");
 			}
 
-			CuConsole::WriteLine(CuStr::Combine("using filter: ", std::quoted(*filterRe), " 0x", std::hex, flags));
+			CuConsole::WriteLine(CuStr::Combine("using filter: `", *filterRe, "` 0x", std::hex, flags));
 			auto re = std::regex(CuStr::ToDirtyUtf8String(CuStr::ToU8String(*filterRe)), flags);
 			std::erase_if(files, [&re](const auto& file)
 			{

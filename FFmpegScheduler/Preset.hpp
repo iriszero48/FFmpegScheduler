@@ -183,10 +183,10 @@ namespace Preset
 
 		{"rp,avc", std::string(CuUtil::String::Join(" ", X264Mmal, Input, X264Omx, Output).data())},
 
-		{"pic,jpg", std::string(CuUtil::String::Join(" ", Input, OutputJpg).data())},
-		{"pic,png", std::string(CuUtil::String::Join(" ", Input, OutputPng).data())},
+		{"jpg", std::string(CuUtil::String::Join(" ", Input, OutputJpg).data())},
+		{"png", std::string(CuUtil::String::Join(" ", Input, OutputPng).data())},
 
-		{"pic,png,resize100x100", std::string(CuUtil::String::Join(" ", Input, Size100X100, OutputPng).data())},
+		{"png,resize100x100", std::string(CuUtil::String::Join(" ", Input, Size100X100, OutputPng).data())},
 
 		{"vid,mp4", std::string(CuUtil::String::Join(" ", Input, OutputMp4).data())},
 
