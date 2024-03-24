@@ -120,15 +120,8 @@ void FFmpeg(const decltype(Preset::Presets)::value_type::second_type& cmds, cons
 			CloseHandle(pi.hProcess);
 			CloseHandle(pi.hThread);
 #else
-			std::string args{};
-			if (createNewWindow)
-			{
-				args = CuStr::Combine("gnome-terminal -e ", std::quoted(cmdStr, '\''));
-			}
-			else
-			{
-				args = cmdStr;
-			}
+			auto args = CuStr::Combine(std::quoted(ffmpeg.native()), " ", cmdStr);
+			if (createNewWindow) args = CuStr::Combine("gnome-terminal -e ", std::quoted(args, '\''));
 			system(args.c_str());
 #endif
 		}
