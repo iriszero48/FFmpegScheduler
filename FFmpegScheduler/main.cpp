@@ -32,7 +32,14 @@
 	std::ostringstream ss;
 	for (const auto& [fst, snd] : Preset::Presets)
 	{
-		ss << CuStr::Combine(std::string(4, ' '), fst, " => ", snd) << "\n";
+		ss << CuStr::Combine(std::string(4, ' '), fst, " => ");
+
+		for (size_t i = 0; i < snd.size(); ++i)
+		{
+			if (i != 0) ss << " && ";
+			ss << snd[i]->ToString();
+		}
+		ss << "\n";
 	}
 	return ss.str();
 }
@@ -70,21 +77,16 @@ CmdStringType ReplaceCommandLine(const std::string& cmd,
 }
 
 
-void FFmpeg(std::string cmd, const std::filesystem::path& ffmpeg, const std::filesystem::path& input,
-            const std::filesystem::path& output,
-            const std::thread::id& id, const bool printOnly, const bool createNewWindow)
+void FFmpeg(const decltype(Preset::Presets)::value_type::second_type& cmds, const std::filesystem::path& ffmpeg, Preset::Params params, const bool printOnly, const bool createNewWindow)
 {
-	const auto idStr = CuStr::Combine(id);
+	params.Id = std::this_thread::get_id();
 
-	if (*cmd.rbegin() != Preset::AndCh) cmd.push_back(Preset::AndCh);
-	std::string cmdLine;
-	std::stringstream ss(cmd);
-	while (std::getline(ss, cmdLine))
+	for (const auto& cmd : cmds)
 	{
-		const auto execCmd = ReplaceCommandLine(cmdLine, input, output, id);
+		const auto cmdStr = cmd->ToCommand(params);
 
 		CuConsole::WriteLine(CuStr::ToDirtyUtf8StringView(
-			CuStr::FormatU8("[{}] -> {} {}", idStr, ffmpeg, execCmd)));
+			CuStr::FormatU8("[{}] -> {} {}", CuStr::Combine(params.Id), ffmpeg, cmdStr)));
 
 		if (!printOnly)
 		{
@@ -97,7 +99,7 @@ void FFmpeg(std::string cmd, const std::filesystem::path& ffmpeg, const std::fil
 			ZeroMemory(&pi, sizeof(pi));
 
 			// Start the child process. 
-			auto args = CuStr::CombineW(ffmpeg, " ", execCmd);
+			auto args = CuStr::CombineW(ffmpeg, " ", cmdStr);
 			if (!CreateProcess(ffmpeg.native().c_str(),   // No module name (use command line)
 				args.data(),        // Command line
 				nullptr,           // Process handle not inheritable
@@ -141,7 +143,6 @@ int main(int argc, const char* argv[])
 		CuArgs::Argument outputArg("-o", "output");
 		CuArgs::Argument logArg("-l", "log path");
 		CuArgs::Argument threadArg("-t", "thread", 1u);
-		CuArgs::Argument customArg("-c", "custom command");
 		CuArgs::EnumArgument modeArg("-m", "[(File)|Dir] input file/directory mode", InputMode::File);
 		CuArgs::Argument<std::string> execArg("-e", "ffmpeg exec path", "ffmpeg");
 		CuArgs::Argument<std::string> inputExtensionArg("-ie", "input extension", "$&");
@@ -158,10 +159,21 @@ int main(int argc, const char* argv[])
 
 			return true;
 		};
-		CuArgs::EnumArgument<FilterPreset> filterPresetArg("--filter-preset", "filter preset [p|v|a]");
+		CuArgs::EnumArgument<FilterPreset> filterPresetArg("-fp", "filter preset [p|v|a]");
+		CuArgs::Argument<std::string> inputOptionArg("-io", "input option", "");
+		CuArgs::Argument<std::string> outputOptionArg("-oo", "output option", "");
+		CuArgs::Argument<std::string> globalOptionArg("-go", "global option", "");
+		CuArgs::Argument<bool> overwriteArg("--overwrite", "overwrite [y|n]",
+			[](const auto& value)
+			{
+				const auto val = CuStr::ToLower(value);
+				if (val == "y") return true;
+				if (val == "n") return false;
+				throw CuExcept::Exception("invalid value");
+			});
 
-		args.Add(helpArg, inputArg, outputArg, logArg, threadArg, customArg, modeArg, execArg, inputExtensionArg,
-		         outputExtensionArg, presetArg, printOnlyArg, createNewWindowArg, filterReArg, filterPresetArg);
+		args.Add(helpArg, inputArg, outputArg, logArg, threadArg, modeArg, execArg, inputExtensionArg,
+		         outputExtensionArg, presetArg, printOnlyArg, createNewWindowArg, filterReArg, filterPresetArg, inputOptionArg, outputOptionArg, globalOptionArg, overwriteArg);
 
 		args.Parse(argc, argv);
 
@@ -175,16 +187,17 @@ int main(int argc, const char* argv[])
 
 		const auto printOnly = args.Value(printOnlyArg);
 		const auto ffmpegExec = args.Value(execArg);
-		const auto rawSubCmd = args.Get(customArg).has_value() ? args.Value(customArg) : Preset::Presets.at(args.Value(presetArg));
+		const auto ffPreset = Preset::Presets.at(args.Value(presetArg));
 		const auto threadNum = args.Value(threadArg);
 		const bool createNewWindow = CuUtil::ToUnderlying(args.Get(createNewWindowArg).value_or(threadNum != 1 ? CreateNewWindow::On : CreateNewWindow::Off));
 		auto filterRe = args.Get(filterReArg);
 		const auto filterPreset = args.Get(filterPresetArg);
-
-		const auto rawCmd = ApplyReplace(rawSubCmd, {
-			                                 {R"("\${3}input\${3}")", args.Value(inputExtensionArg)},
-			                                 {R"("\${3}output\${3}.*?")", args.Value(outputExtensionArg)}
-		                                 });
+		const auto inputOption = args.Value(inputOptionArg);
+		const auto outputOption = args.Value(outputOptionArg);
+		const auto globalOption = args.Value(globalOptionArg);
+		const auto overwrite = args.Get(overwriteArg);
+		const auto inputExt = args.Value(inputExtensionArg);
+		const auto outputExt = args.Value(outputExtensionArg);
 
 		const std::filesystem::path inputPath = args.Value(inputArg);
 		const auto outputPath = args.Get(outputArg);
@@ -244,7 +257,17 @@ int main(int argc, const char* argv[])
 			CuConsole::WriteLine(CuStr::ToDirtyUtf8StringView(CuStr::FormatU8("-> ({}/{}) {}", ++index, count, file)));
 
 			const auto output = outputPath ? *outputPath / file.filename() : file.parent_path() / file.filename();
-			FFmpeg(rawCmd, ffmpegExec, file, output, std::this_thread::get_id(), printOnly, createNewWindow);
+			FFmpeg(ffPreset, ffmpegExec, {
+				file,
+				inputExt,
+				output,
+				outputExt,
+				std::this_thread::get_id(),
+				overwrite,
+				inputOption,
+				outputOption,
+				globalOption
+			}, printOnly, createNewWindow);
 		};
 
 		if (threadNum == 1)

@@ -9,8 +9,7 @@ namespace Preset
 {
 #define MakeConstVar(name, str) constexpr auto name = CuUtil::String::ToBuffer(str)
 
-	constexpr auto AndCh = '\n';
-	constexpr std::array And{AndCh, '\0'};
+	constexpr std::array EmptyString = { '\0' };
 
 	MakeConstVar(ThreadId, "$$$thread_id$$$");
 
@@ -21,10 +20,10 @@ namespace Preset
 	MakeConstVar(X264Cuvid, "-c:v h264_cuvid");
 	MakeConstVar(X264Mmal, "-c:v h264_mmal");
 
-	MakeConstVar(FrameRate29_97, "-framerate 29.97");
+	MakeConstVar(FrameRate29_97, "-framerate 24000/1001");
 
-	MakeConstVar(Input, CuUtil::String::Join(" ", "-i", R"("$$$input$$$")"));
-	MakeConstVar(InputPng_d, CuUtil::String::Join(" ", "-i", R"("$$$input$$$/%d.png")"));
+	MakeConstVar(Input, CuUtil::String::Join(" ", "-i", "$$$input$$$"));
+	MakeConstVar(InputPng_d, CuUtil::String::Join(" ", "-i", "$$$input$$$/%d.png"));
 
 	MakeConstVar(NvInput, CuUtil::String::Join(" ", HwCuvid, X264Cuvid, Input));
 
@@ -45,7 +44,7 @@ namespace Preset
 	MakeConstVar(LoudNorm, "-filter:a loudnorm");
 
 	MakeConstVar(ScaleUp60Fps,
-				 R"(-filter:v "minterpolate='fps=60:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:me=epzs:vsbmc=1:scd=fdiff'")");
+		R"(-filter:v "minterpolate='fps=60:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:me=epzs:vsbmc=1:scd=fdiff'")");
 
 	MakeConstVar(Image2, "-f image2");
 
@@ -83,11 +82,11 @@ namespace Preset
 	MakeConstVar(Smpte170m, "-colorspace 6 -color_trc 6 -color_primaries 6");
 
 	MakeConstVar(Anima60FpsAvc720pParams,
-				 R"(-x264-params "deblock='0:0':keyint=600:min-keyint=1:ref=9:qcomp=0.7:rc-lookahead=180:aq-strength=0.9:merange=16:me=tesa:psy-rd='0:0.20':no-fast-pskip=1")");
+		R"(-x264-params "deblock='0:0':keyint=600:min-keyint=1:ref=9:qcomp=0.7:rc-lookahead=180:aq-strength=0.9:merange=16:me=tesa:psy-rd='0:0.20':no-fast-pskip=1")");
 	MakeConstVar(Anima60FpsAvcParams,
-				 R"(-x264-params "mbtree=1:aq-mode=3:psy-rd='0.6:0.15':aq-strength=0.8:rc-lookahead=180:qcomp=0.75:deblock='-1:-1':keyint=600:min-keyint=1:bframes=8:ref=13:me=tesa:no-fast-pskip=1")");
+		R"(-x264-params "mbtree=1:aq-mode=3:psy-rd='0.6:0.15':aq-strength=0.8:rc-lookahead=180:qcomp=0.75:deblock='-1:-1':keyint=600:min-keyint=1:bframes=8:ref=13:me=tesa:no-fast-pskip=1")");
 	MakeConstVar(Anima60FpsHevcParams,
-				 R"(-x265-params "deblock='-1:-1':ctu=32:qg-size=8:pbratio=1.2:cbqpoffs=-2:crqpoffs=-2:no-sao=1:me=3:subme=5:merange=38:b-intra=1:limit-tu=4:no-amp=1:ref=4:weightb=1:keyint=600:min-keyint=1:bframes=6:aq-mode=1:aq-strength=0.8:rd=5:psy-rd=2.0:psy-rdoq=1.0:rdoq-level=2:no-open-gop=1:rc-lookahead=180:scenecut=40:qcomp=0.65:no-strong-intra-smoothing=1:")");
+		R"(-x265-params "deblock='-1:-1':ctu=32:qg-size=8:pbratio=1.2:cbqpoffs=-2:crqpoffs=-2:no-sao=1:me=3:subme=5:merange=38:b-intra=1:limit-tu=4:no-amp=1:ref=4:weightb=1:keyint=600:min-keyint=1:bframes=6:aq-mode=1:aq-strength=0.8:rd=5:psy-rd=2.0:psy-rdoq=1.0:rdoq-level=2:no-open-gop=1:rc-lookahead=180:scenecut=40:qcomp=0.65:no-strong-intra-smoothing=1:")");
 
 	MakeConstVar(AvcAudioComp, CuUtil::String::Join(" ", Aac, AudioBitrate128k /*, AudioS16*/));
 
@@ -101,23 +100,24 @@ namespace Preset
 
 	MakeConstVar(NvencAvc720pComp, CuUtil::String::Join(" ", X264Nvenc, PresetLossLessHp, Qp0));
 	MakeConstVar(AnimaAvc720pComp,
-				 CuUtil::String::Join(" ", X264, PresetVerySlow, Crf19, Yuv420p, TuneFilm, Anima60FpsAvc720pParams));
+		CuUtil::String::Join(" ", X264, PresetVerySlow, Crf19, Yuv420p, TuneFilm, Anima60FpsAvc720pParams));
 
 	MakeConstVar(AnimaAvcComp, CuUtil::String::Join(" ", X264, PresetVerySlow, Crf15, Yuv420p10le, Anima60FpsAvcParams));
 	MakeConstVar(AnimaAvcCompYuv444,
-				 CuUtil::String::Join(" ", X264, PresetVerySlow, Crf15, Yuv444p10le, Anima60FpsAvcParams));
+		CuUtil::String::Join(" ", X264, PresetVerySlow, Crf15, Yuv444p10le, Anima60FpsAvcParams));
 	MakeConstVar(AnimaHevcComp, CuUtil::String::Join(" ", X265, PresetSlower, Crf14, Yuv420p10le, Anima60FpsHevcParams));
 
 	MakeConstVar(FormatNull, "-f null");
 
-	MakeConstVar(Output, R"("$$$output$$$")");
-	MakeConstVar(OutputJpg, R"("$$$output$$$.jpg")");
-	MakeConstVar(OutputPng, R"("$$$output$$$.png")");
-	MakeConstVar(OutputPng_d, R"("$$$output$$$/%d.png")");
-	MakeConstVar(OutputAvif, R"("$$$output$$$.avif")");
-	MakeConstVar(OutputMp4, R"("$$$output$$$.mp4")");
-	MakeConstVar(OutputMkv, R"("$$$output$$$.mkv")");
-	MakeConstVar(OutputOpus, R"("$$$output$$$.opus")");
+	MakeConstVar(Output, "$$$output$$$");
+	MakeConstVar(OutputJpg, "$$$output$$$.jpg");
+	MakeConstVar(OutputPng, "$$$output$$$.png");
+	MakeConstVar(OutputWebp, "$$$output$$$.webp");
+	MakeConstVar(OutputPng_d, "$$$output$$$/%d.png");
+	MakeConstVar(OutputAvif, "$$$output$$$.avif");
+	MakeConstVar(OutputMp4, "$$$output$$$.mp4");
+	MakeConstVar(OutputMkv, "$$$output$$$.mkv");
+	MakeConstVar(OutputOpus, "$$$output$$$.opus");
 #ifdef CuUtil_Platform_Windows
 	MakeConstVar(OutputNull, CuUtil::String::Join(" ", FormatNull, "NUL"));
 #else
@@ -126,88 +126,175 @@ namespace Preset
 
 	MakeConstVar(Vvc2Pass1, CuUtil::String::Combine(R"(-an -c:v libvvenc -vvenc-params passes=2:pass=1:rcstatsfile=)", ThreadId, ".json"));
 	MakeConstVar(Vvc2Pass2, CuUtil::String::Combine(R"(-c:v libvvenc -vvenc-params passes=2:pass=2:rcstatsfile=)", ThreadId, ".json"));
-	MakeConstVar(VidArchVvc_2pass, CuUtil::String::Join(" ", Input, Vvc2Pass1, OutputNull, And, Input, Opus, Vvc2Pass2, OutputMp4));
 #undef MakeConstVar
 
-	inline std::unordered_map<std::string, std::string> Presets{
-		{"anima,avc,720p,comp,colorspace=bt709", std::string(CuUtil::String::Join(" ", InputCopy, Size720p, AvcAudioComp, AnimaAvc720pComp, ColorSpaceBt709, Output).data())},
+	struct Params
+	{
+		std::filesystem::path Input;
+		std::string InputExt;
+		std::filesystem::path Output;
+		std::string OutputExt;
+		std::thread::id Id;
+		std::optional<bool> Overwrite;
+		std::string InputOptionExt;
+		std::string OutputOptionExt;
+		std::string GlobalExt;
+	};
 
-		{"anima,avc,comp", std::string(CuUtil::String::Join(" ", InputCopy, AnimaAvcComp, Output).data())},
-		{"anima,avc,comp,colorspace=bt709",
-		 std::string(CuUtil::String::Join(" ", InputCopy, AnimaAvcComp, ColorSpaceBt709, Output).data())},
-		{"anima,avc,comp,bt709", std::string(CuUtil::String::Join(" ", InputCopy, AnimaAvcComp, Bt709, Output).data())},
+	using CmdStringType = std::filesystem::path::string_type;
 
-		{"anima,hevc,comp", std::string(CuUtil::String::Join(" ", InputCopy, AnimaHevcComp, Output).data())},
-		{"anima,hevc,comp,colorspace=bt709",
-		 std::string(CuUtil::String::Join(" ", InputCopy, AnimaHevcComp, ColorSpaceBt709, Output).data())},
-		{"anima,hevc,comp,bt709", std::string(CuUtil::String::Join(" ", InputCopy, AnimaHevcComp, Bt709, Output).data())},
+	template <typename Str>
+	CmdStringType ToCmdString(const Str& str)
+	{
+		return CuStr::ToStringAs<CmdStringType>(str);
+	}
 
-		{"anima,upto60fps,avc,ll",
-		 std::string(CuUtil::String::Join(" ", InputCopy, ScaleUp60Fps, AvcLossLessP10, Output).data())},
-		{"anima,upto60fps,avc,ll,colorspace=bt709",
-		 std::string(
-			 CuUtil::String::Join(" ", InputCopy, ScaleUp60Fps, AvcLossLessP10, ColorSpaceBt709, Output).data())},
-		{"anima,upto60fps,avc,ll,bt709",
-		 std::string(CuUtil::String::Join(" ", InputCopy, ScaleUp60Fps, AvcLossLessP10, Bt709, Output).data())},
+	CmdStringType operator""_cmd(const char* str, std::size_t)
+	{
+		return std::filesystem::path(str).string<CmdStringType::value_type>();
+	}
 
-		{"anima,upto60fps,avc,comp",
-		 std::string(CuUtil::String::Join(" ", InputCopy, ScaleUp60Fps, AnimaAvcComp, Output).data())},
-		{"anima,upto60fps,avc,comp,colorspace=bt709",
-		 std::string(CuUtil::String::Join(" ", InputCopy, ScaleUp60Fps, AnimaAvcComp, ColorSpaceBt709, Output).data())},
-		{"anima,upto60fps,avc,comp,bt709",
-		 std::string(CuUtil::String::Join(" ", InputCopy, ScaleUp60Fps, AnimaAvcComp, Bt709, Output).data())},
+	struct IPreset
+	{
+		IPreset() = default;
+		IPreset(const IPreset&) = default;
+		IPreset(IPreset&&) = default;
+		virtual ~IPreset() = default;
 
-		{"anima,upto60fps,avc,comp,444p10,colorspace=bt709",
-		 std::string(
-			 CuUtil::String::Join(" ", InputCopy, ScaleUp60Fps, AnimaAvcCompYuv444, ColorSpaceBt709, Output).data())},
+		virtual CmdStringType ToCommand(const Params& params) = 0;
 
-		{"avc,ll", std::string(CuUtil::String::Join(" ", InputCopy, AvcLossLess, Output).data())},
-		{"avc,vll", std::string(CuUtil::String::Join(" ", InputCopy, AvcVisuallyLossLess, Output).data())},
-		{"avc,vll,p10", std::string(CuUtil::String::Join(" ", InputCopy, AvcVisuallyLossLessP10, Output).data())},
-		{"avc,vll,p10,bt709",
-		 std::string(CuUtil::String::Join(" ", InputCopy, AvcVisuallyLossLessP10, Bt709, Output).data())},
-		{"avc,vll,p10,smpte170m",
-		 std::string(CuUtil::String::Join(" ", InputCopy, AvcVisuallyLossLessP10, Smpte170m, Output).data())},
+		virtual std::string ToString() = 0;
+	};
 
-		{"avc", std::string(CuUtil::String::Join(" ", Input, X264, Output).data())},
-		{"avc,bt709", std::string(CuUtil::String::Join(" ", Input, X264, Bt709, Output).data())},
-		{"avc,placebo", std::string(CuUtil::String::Join(" ", Input, X264, PresetPlacebo, Output).data())},
+	template <size_t GlobalS, size_t InputOptS, size_t InputS, size_t OutputOptS, size_t OutputS>
+	struct Preset final : IPreset
+	{
+		std::array<char, GlobalS> Global;
+		std::array<char, InputOptS> InputOption;
+		std::array<char, InputS> Input;
+		std::array<char, OutputOptS> OutputOption;
+		std::array<char, OutputS> Output;
 
-		{"avc,720p,nvenc,colorspace=bt709",
-		 std::string(CuUtil::String::Join(" ", InputCopy, Size720p, AvcAudioComp, X264Nvenc, Yuv420p, ColorSpaceBt709,
-										  Output)
-						 .data())},
+		Preset(std::array<char, GlobalS> global,
+		       std::array<char, InputOptS> inputOption,
+		       std::array<char, InputS> input,
+		       std::array<char, OutputOptS> outputOption,
+		       std::array<char, OutputS> output) : Global(global), InputOption(inputOption), Input(input),
+		                                           OutputOption(outputOption), Output(output)
+		{
+		}
 
-		{"nv,avc", std::string(CuUtil::String::Join(" ", NvInput, X264Nvenc, Output).data())},
-		{"nv,avc,ll", std::string(CuUtil::String::Join(" ", NvInput, NvencAvcLossLess, Output).data())},
+		CmdStringType ToCommand(const Params& params) override
+		{
+			std::basic_stringstream<CmdStringType::value_type> ss;
 
-		{"rp,avc", std::string(CuUtil::String::Join(" ", X264Mmal, Input, X264Omx, Output).data())},
+			ss << ToCmdString(Global.data()) << " ";
+			ss << ToCmdString(params.GlobalExt) << " ";
 
-		{"jpg", std::string(CuUtil::String::Join(" ", Input, OutputJpg).data())},
-		{"png", std::string(CuUtil::String::Join(" ", Input, OutputPng).data())},
+			ss << ToCmdString(InputOption.data()) << " ";
+			ss << ToCmdString(params.InputOptionExt) << " ";
 
-		{"png,resize100x100", std::string(CuUtil::String::Join(" ", Input, Size100X100, OutputPng).data())},
+			const auto inputExp = ToCmdString(
+				std::regex_replace(Input.data(), std::regex(R"(\${3}input\${3})"), params.InputExt));
+			const auto input = std::regex_replace(inputExp, std::basic_regex(R"(\${3}input\${3})"_cmd),
+			                                      params.Input.native());
+			ss << std::quoted(input) << " ";
 
-		{"vid,mp4", std::string(CuUtil::String::Join(" ", Input, OutputMp4).data())},
+			ss << ToCmdString(OutputOption.data()) << " ";
+			ss << ToCmdString(params.OutputOptionExt) << " ";
+			if (params.Overwrite) ss << ToCmdString(*params.Overwrite ? "-y" : "-n") << " ";
 
-		{"vid2png%d", std::string(CuUtil::String::Join(" ", Input, Image2, OutputPng_d).data())},
+			const auto outputExp = ToCmdString(
+				std::regex_replace(Output.data(), std::regex(R"(\${3}output\${3})"), params.OutputExt));
+			const auto output = std::regex_replace(outputExp, std::basic_regex(R"(\${3}output\${3})"_cmd),
+			                                       params.Output.native());
+			ss << std::quoted(output);
 
-		{"png%d2mp4,29.97fps,p10le",
-		 std::string(CuUtil::String::Join(" ", FrameRate29_97, InputPng_d, Yuv420p10le, Output).data())},
+			const auto cmd = ss.str();
 
-		{"loudnorm", std::string(CuUtil::String::Join(" ", InputCopy, LoudNorm, Output).data())},
+			return std::regex_replace(cmd, std::basic_regex(R"(\${3}thread_id\${3})"_cmd),
+			                          CuStr::CombineAs<CmdStringType>(params.Id));
+		}
 
-		{"i", std::string(CuUtil::String::Join(" ", Input).data())},
+		std::string ToString() override
+		{
+			return CuStr::Appends("ffmpeg ", Global.data(), " ", InputOption.data(), " ", Input.data(), " ",
+			                      OutputOption.data(), " ", Output.data());
+		}
+	};
 
-		{"easydecode",
-		 std::string(CuUtil::String::Join(" ", Vsync0, HwCuvid, X264Cuvid, Resize720p, Input, X264Nvenc, Ac2,
-										  OutputMp4)
-						 .data())},
+	template <size_t GlobalS, size_t InputOptS, size_t InputS, size_t OutputOptS, size_t OutputS>
+	auto Create(std::array<char, GlobalS> global, std::array<char, InputOptS> inputOpt, std::array<char, InputS> input,
+	            std::array<char, OutputOptS> outputOpt, std::array<char, OutputS> output)
+	{
+		return std::make_shared<Preset<GlobalS, InputOptS, InputS, OutputOptS, OutputS>>(
+			global, inputOpt, input, outputOpt, output);
+	}
 
-		{"arch,svtp10", std::string(CuUtil::String::Join(" ", Input, Opus, SvtAv1, Yuv420p10le, OutputMkv).data())},
-		{"arch,vvc", std::string(CuUtil::String::Join(" ", Input, Opus, VvEnc, OutputMp4).data())},
-		{"arch,vvc2", std::string(VidArchVvc_2pass.data())},
-		{"avif", std::string(CuUtil::String::Join(" ", Input, OutputAvif).data())},
-		{"opus", std::string(CuUtil::String::Join(" ", Input, Opus, OutputOpus).data())}
+	template <size_t InputOptS, size_t InputS, size_t OutputOptS, size_t OutputS>
+	auto Create(std::array<char, InputOptS> inputOpt, std::array<char, InputS> input,
+	            std::array<char, OutputOptS> outputOpt, std::array<char, OutputS> output)
+	{
+		return Create(EmptyString, inputOpt, input, outputOpt, output);
+	}
+
+	template <size_t InputOptS, size_t OutputOptS, size_t OutputS>
+	auto Create(std::array<char, InputOptS> inputOpt, std::array<char, OutputOptS> outputOpt,
+	            std::array<char, OutputS> output)
+	{
+		return Create(inputOpt, Input, outputOpt, output);
+	}
+
+	template <size_t OutputOptS, size_t OutputS>
+	auto Create(std::array<char, OutputOptS> outputOpt, std::array<char, OutputS> output)
+	{
+		return Create(EmptyString, outputOpt, output);
+	}
+
+	template <size_t OutputS>
+	auto Create(std::array<char, OutputS> output)
+	{
+		return Create(EmptyString, output);
+	}
+
+	inline auto Create()
+	{
+		return Create(Output);
+	}
+
+	template <typename... Args>
+	consteval auto CombineOption(Args&&... args)
+	{
+		return CuUtil::String::Join(" ", std::forward<Args>(args)...);
+	}
+
+	inline std::unordered_map<std::string, std::vector<std::shared_ptr<IPreset>>> Presets{
+		{"avif", {Create(OutputAvif)}},
+		{"opus", {Create(OutputOpus)}},
+		{"vvc,opus,mp4", {Create(CuUtil::String::Join(" ", VvEnc, Opus), OutputMp4)}},
+		{"vvc,2pass,opus,mp4", {Create(Vvc2Pass1, OutputNull), Create(CombineOption(Vvc2Pass2, Opus), OutputMp4)}},
+		{"svtav1,p10le,opus,mkv", {Create(CombineOption(SvtAv1, Yuv420p10le, Opus), OutputMkv)}},
+		{
+			"easydecode",
+			{
+				Create(CombineOption(Vsync0, HwCuvid), X264Cuvid, Input, CombineOption(Resize720p, X264Nvenc, Ac2),
+				       OutputMp4)
+			}
+		},
+		{"pass", {Create()}},
+		{"anima,avc,720p", {Create(CombineOption(copy, Size720p, AnimaAvc720pComp), OutputMkv)}},
+		{"anima,avc", {Create(CombineOption(copy, AnimaAvcComp), OutputMkv)}},
+		{"anima,hevc", {Create(CombineOption(copy, AnimaHevcComp), OutputMkv)}},
+		{"anima,upto60fps,ll", {Create(CombineOption(copy, ScaleUp60Fps, AvcLossLessP10), OutputMkv)}},
+		{"anima,upto60fps,avc", {Create(CombineOption(copy, ScaleUp60Fps, AnimaAvcComp), OutputMkv)}},
+		{"avc,ll", {Create(CombineOption(copy, AvcLossLess), OutputMkv)}},
+		{"avc,vll", {Create(CombineOption(copy, AvcVisuallyLossLess), OutputMkv)}},
+		{"raspberrypi", {Create(X264Mmal, Input, X264Omx, OutputMkv)}},
+		{"jpg", {Create(OutputJpg)}},
+		{"webp", {Create(OutputWebp)}},
+		{"png", {Create(OutputPng)}},
+		{"vid2png%d", {Create(Image2, OutputPng_d)}},
+		{"png%d2mp4", {Create(FrameRate29_97, InputPng_d, CombineOption(AvcLossLess, Yuv420p10le), OutputMkv)}},
+		{"loudnorm", {Create(CombineOption(copy, LoudNorm), OutputMkv)}},
 	};
 }
