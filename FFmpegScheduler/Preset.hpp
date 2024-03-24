@@ -22,8 +22,8 @@ namespace Preset
 
 	MakeConstVar(FrameRate29_97, "-framerate 24000/1001");
 
-	MakeConstVar(Input, CuUtil::String::Join(" ", "-i", "$$$input$$$"));
-	MakeConstVar(InputPng_d, CuUtil::String::Join(" ", "-i", "$$$input$$$/%d.png"));
+	MakeConstVar(Input, "$$$input$$$");
+	MakeConstVar(InputPng_d, "$$$input$$$/%d.png");
 
 	MakeConstVar(NvInput, CuUtil::String::Join(" ", HwCuvid, X264Cuvid, Input));
 
@@ -198,7 +198,7 @@ namespace Preset
 				std::regex_replace(Input.data(), std::regex(R"(\${3}input\${3})"), params.InputExt));
 			const auto input = std::regex_replace(inputExp, std::basic_regex(R"(\${3}input\${3})"_cmd),
 			                                      params.Input.native());
-			ss << std::quoted(input) << " ";
+			ss << "-i " << std::quoted(input) << " ";
 
 			ss << ToCmdString(OutputOption.data()) << " ";
 			ss << ToCmdString(params.OutputOptionExt) << " ";
