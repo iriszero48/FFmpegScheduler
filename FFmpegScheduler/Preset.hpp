@@ -119,9 +119,9 @@ namespace Preset
 	MakeConstVar(OutputMkv, "$$$output$$$.mkv");
 	MakeConstVar(OutputOpus, "$$$output$$$.opus");
 #ifdef CuUtil_Platform_Windows
-	MakeConstVar(OutputNull, CuUtil::String::Join(" ", FormatNull, "NUL"));
+	MakeConstVar(OutputNull, "NUL");
 #else
-	MakeConstVar(OutputNull, CuUtil::String::Join(" ", FormatNull, "/dev/null"));
+	MakeConstVar(OutputNull, "/dev/null");
 #endif
 
 	MakeConstVar(Vvc2Pass1, CuUtil::String::Combine(R"(-an -c:v libvvenc -vvenc-params passes=2:pass=1:rcstatsfile=)", ThreadId, ".json"));
@@ -272,7 +272,7 @@ namespace Preset
 		{"avif", {Create(OutputAvif)}},
 		{"opus", {Create(OutputOpus)}},
 		{"vvc,opus,mp4", {Create(CuUtil::String::Join(" ", VvEnc, Opus), OutputMp4)}},
-		{"vvc,2pass,opus,mp4", {Create(Vvc2Pass1, OutputNull), Create(CombineOption(Vvc2Pass2, Opus), OutputMp4)}},
+		{"vvc,2pass,opus,mp4", {Create(CombineOption(Vvc2Pass1, FormatNull), OutputNull), Create(CombineOption(Vvc2Pass2, Opus), OutputMp4)}},
 		{"svtav1,p10le,opus,mkv", {Create(CombineOption(SvtAv1, Yuv420p10le, Opus), OutputMkv)}},
 		{
 			"easydecode",
