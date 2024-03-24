@@ -79,8 +79,6 @@ CmdStringType ReplaceCommandLine(const std::string& cmd,
 
 void FFmpeg(const decltype(Preset::Presets)::value_type::second_type& cmds, const std::filesystem::path& ffmpeg, Preset::Params params, const bool printOnly, const bool createNewWindow)
 {
-	params.Id = std::this_thread::get_id();
-
 	for (const auto& cmd : cmds)
 	{
 		const auto cmdStr = cmd->ToCommand(params);
@@ -123,9 +121,14 @@ void FFmpeg(const decltype(Preset::Presets)::value_type::second_type& cmds, cons
 			CloseHandle(pi.hThread);
 #else
 			std::string args{};
-			if (createNewWindow) args.append("gnome-terminal -e '");
-			CuStr::AppendsTo(args, ffmpeg, " ", execCmd);
-			if (createNewWindow) args.append("'");
+			if (createNewWindow)
+			{
+				args = CuStr::Combine("gnome-terminal -e ", std::quoted(cmdStr, '\''));
+			}
+			else
+			{
+				args = cmdStr;
+			}
 			system(args.c_str());
 #endif
 		}
