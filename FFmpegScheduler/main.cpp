@@ -229,7 +229,7 @@ int main(int argc, const char* argv[])
 			const auto end = filterRe->find_last_of('/');
 			const auto mode = filterRe->substr(end + 1);
 			filterRe = filterRe->substr(being, end - being);
-			auto flags = std::regex_constants::ECMAScript | std::regex_constants::optimize;
+			auto flags = std::regex_constants::ECMAScript;
 			if (mode == "i")
 			{
 				flags |= std::regex_constants::icase;

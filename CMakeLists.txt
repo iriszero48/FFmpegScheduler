@@ -13,6 +13,6 @@ add_executable(FFmpegScheduler ${SRC_FILES} ${CU_FILES})
 target_include_directories(FFmpegScheduler PRIVATE "CppUtility")
 
 if (MSVC)
-    target_compile_definitions(FFmpegScheduler PRIVATE UNICODE UNICODE_)
+    target_compile_definitions(FFmpegScheduler PRIVATE UNICODE UNICODE_ _REGEX_MAX_STACK_COUNT=0 _REGEX_MAX_COMPLEXITY_COUNT=0)
     target_compile_options(FFmpegScheduler PRIVATE /MTd)
 endif()
